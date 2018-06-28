@@ -4,7 +4,10 @@ from openpyxl import Workbook
 import urllib
 import argparse
 import time
-from secrets import *
+
+domain_name = None
+email = None
+api_key = None
 
 def fetch_ticket_ids(start, end):
     encoded_query = urllib.urlencode({"query": "type:ticket created>%s created<%s" % (start, end)})
@@ -98,23 +101,34 @@ def export_to_excel(tickets, comments, file_name):
     print "Done"
 
 def main():
+    global domain_name
+    global email
+    global api_key
     parser = argparse.ArgumentParser()
-    parser.add_argument("--start", help="Start date YYYY-MM-DD", required=True)
-    parser.add_argument("--end", help="End date YYYY-MM-DD", required=True)
-    parser.add_argument("--skip-comments", help="Don't fetch the comments. This will speed it up", action="store_true")
-    parser.add_argument("--excel-file-name", help="The name for the excel file.")
+    parser.add_argument("job_file", help="path to the json job file")
     args = parser.parse_args()
+    import ipdb; ipdb.set_trace()
+    with open(args.job_file) as f:
+        job = json.load(f)
 
-    start_date = args.start
-    end_date = args.end
-    skip_comments = args.skip_comments
-    excel_file_name = args.excel_file_name
+    required_params = {"domain_name", "email", "api_key"}
+    missing_params = required_params - set(job.keys())
+    if missing_params:
+        raise RuntimeError("Missing required parameters: %s" % missing_params)
+    
+    domain_name = job["domain_name"]
+    email = job["email"]
+    api_key = job["api_key"]
+
+    start_date = job.get("start_date")
+    end_date = job.get("end_date")
+    excel_file_name = job.get("output_file_name", str(int(time.time())))
     _ext = '.xlsx'
     excel_file_name = excel_file_name + _ext if not excel_file_name.endswith(_ext) else excel_file_name
 
     ticket_ids = fetch_ticket_ids(start_date, end_date)
     tickets = fetch_tickets(ticket_ids)
-    comments = [] if skip_comments else fetch_comments(ticket_ids)
+    comments = fetch_comments(ticket_ids) if job.get("fetch_comments") else []
     export_to_excel(tickets, comments, excel_file_name or str(int(time.time())))
 
 if __name__ == "__main__":

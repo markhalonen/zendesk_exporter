@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="zendesk_exporter",
-    version="0.0.1",
+    version="0.0.31",
     author="Mark Halonen",
     author_email="halonen.mark@gmail.com",
     description="A small zendesk export tool",
@@ -23,6 +23,6 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ),
     entry_points = {
-        'console_scripts': ['zendesk_exporter=zendesk_expoter.export_tickets:main'],
+        'console_scripts': ['zendesk_exporter=zendesk_exporter.export_tickets:main'],
     }
 )

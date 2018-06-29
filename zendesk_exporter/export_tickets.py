@@ -15,13 +15,9 @@ def search_tickets(start, end):
     while url is not None:
         response = requests.get(url, auth=(email + "/token", api_key))
         all_results += response.json()['results']
-        print "Fetched %d/%d ticket id\'s" % (len(all_results), response.json()['count'])
+        print "Fetched %d/%d ticket ids" % (len(all_results), response.json()['count'])
         url = response.json().get('next_page', None)
     return all_results
-
-def fetch_ticket_ids(start, end):
-    search_result = search_tickets(start, end) 
-    return [x["id"] for x in search_result]
 
 def fetch_tickets(ticket_ids):
     tickets = []
@@ -60,10 +56,7 @@ def fetch_comments(ticket_ids):
         print "Fetched %d/%d ticket comments" % (i+1, len(ticket_ids))
     return all_comments
 
-ticket_field_names = "id,created_at,subject,description,tags,updated_at,end_user_name,support_names".split(",")
-comment_field_names = "ticket_id,body,created_at,public,name".split(",")
-
-def export_to_csv(tickets, comments, file_name, quick=False):
+def export_to_csv(tickets, comments, file_name):
     _ext = '.csv'
     file_name = file_name + _ext if not file_name.endswith(_ext) else file_name
 
@@ -72,29 +65,31 @@ def export_to_csv(tickets, comments, file_name, quick=False):
     import csv
     with open(file_name, 'wb') as csvfile:
         writer = csv.writer(csvfile, dialect='excel')
-        if quick:
-            writer.writerow(tickets[0].keys())
-            for ticket in tickets:
+        writer.writerow(tickets[0].keys())
+        for ticket in tickets:
+            row = []
+            for k in ticket:
+                if k not in ticket:
+                    row.append("")
+                elif type(ticket[k]) in (unicode, int, str):
+                    row.append(ticket[k])
+                else:
+                    row.append(str(ticket[k]))
+            writer.writerow([v.encode('utf-8') if type(v) is unicode else v for v in row])
+    
+    if comments:
+        with open(file_name[:-4] + "_comments.csv", 'wb') as csvfile:
+            writer = csv.writer(csvfile, dialect='excel')
+            writer.writerow(comments[0].keys())
+            for comment in comments:
                 row = []
-                for k in ticket:
-                    if k not in ticket:
+                for k in comment:
+                    if k not in comment:
                         row.append("")
-                    elif type(ticket[k]) in (unicode, int, str):
-                        row.append(ticket[k])
+                    elif type(comment[k]) in (unicode, int, str):
+                        row.append(comment[k])
                     else:
-                        row.append(str(ticket[k]))
-                writer.writerow([v.encode('utf-8') if type(v) is unicode else v for v in row])
-        else:
-            writer.writerow(ticket_field_names)
-            for ticket in tickets:
-                row = []
-                for k in ticket_field_names:
-                    if k not in ticket:
-                        row.append("")
-                    elif type(ticket[k]) in (unicode, int, str):
-                        row.append(ticket[k])
-                    else:
-                        row.append(str(ticket[k]))
+                        row.append(str(comment[k]))
                 writer.writerow([v.encode('utf-8') if type(v) is unicode else v for v in row])
 
 
@@ -111,10 +106,10 @@ def export_to_excel(tickets, comments, file_name):
     ws.title = "tickets"
 
     # Rows can also be appended
-    ws.append(ticket_field_names)
+    ws.append(tickets[0].keys())
     for ticket in tickets:
         row = []
-        for k in ticket_field_names:
+        for k in ticket:
             if k not in ticket:
                 row.append("")
             elif type(ticket[k]) in (unicode, int, str):
@@ -125,10 +120,10 @@ def export_to_excel(tickets, comments, file_name):
 
     if comments:  
         ws2 = wb.create_sheet(title="Comments")
-        ws2.append(comment_field_names)
+        ws2.append(comments[0].keys())
         for comment in comments:
             row = []
-            for k in comment_field_names:
+            for k in comment:
                 if k not in comment:
                     row.append("")
                 elif type(comment[k]) in (unicode, int, str):
@@ -148,9 +143,10 @@ example_json_file = """
     "api_key": "XXX",
     "start_date": "2018-06-27",
     "end_date": "2018-06-30",
-    "fetch_comments": false,
+    "fetch_comments": true,
     "output_file_name": "last_6_months",
-    "output_file_type": "csv"
+    "output_file_type": "excel",
+    "fetch_all_ticket_data": true
 }
 """
 
@@ -179,12 +175,13 @@ def main():
     end_date = job.get("end_date")
     file_name = job.get("output_file_name", str(int(time.time())))
     
-
-    # ticket_ids = fetch_ticket_ids(start_date, end_date)
-    # tickets = fetch_tickets(ticket_ids)
-    comments = [] # fetch_comments(ticket_ids) if job.get("fetch_comments") else []
+    tickets = search_tickets(start_date, end_date)
+    ticket_ids = [x["id"] for x in tickets]
+    if job.get("fetch_all_ticket_data"):
+        tickets = fetch_tickets(ticket_ids)
+    comments = fetch_comments(ticket_ids) if job.get("fetch_comments") else []
     if job.get("output_file_type", "").lower() == "csv":
-        export_to_csv(search_tickets(start_date, end_date), comments, file_name, quick=True)
+        export_to_csv(tickets, comments, file_name)
     else:
         export_to_excel(tickets, comments, file_name)
 

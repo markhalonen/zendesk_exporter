@@ -32,3 +32,13 @@ Exports data from Zendesk API to excel or csv
 }
 ```
 You can change the parameters in this file to change how the program behaves. 
+#### Parameters explained:
+- `domain_name`: This is what appears in the url when you visit zendesk. `https://your-domain-name.zendesk.com`
+- `email`: Your email address for authentication. 
+- `api_key`: Your api key for authentication. This is basically a password.
+- `start_date`: The _exclusive_ start date
+- `end_date`: The _exclusive_ end date
+- `fetch_comments`: Will download all the comments for all the tickets it finds. Can be time consuming.
+- `output_file_name`: What to name the output file
+- `output_file_type`: Options are `csv` or `excel`.
+- `fetch_all_ticket_data`: Will download all ticket data. Can be time consuming.
